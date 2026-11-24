@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nirmana Trimatra – Riak Air 50 × 50 cm</title>
+<style>
+:root{--bg:#15161a;--fg:#eceae4;--chip:#2a2c33;--chip2:#3a3d47;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+button{background:var(--chip);color:var(--fg);border:0;border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer}
+button:hover,button.on{background:var(--chip2)}
+label{font-size:12px;display:flex;gap:6px;align-items:center}
+#t{position:absolute;left:14px;top:calc(12px + env(safe-area-inset-top,0px));font-size:13px;opacity:.85;line-height:1.4;pointer-events:none}
+#t b{font-size:15px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="t"><b>Nirmana Trimatra – Riak Air</b><br>50 × 50 cm total · frame 1,5 cm · alas styrofoam 2 lapis · 59 sirip 3 mm<br>Geser = putar · scroll/cubit = zoom · klik kanan = geser</div>
+<div id="ui">
+  <button data-v="front">Depan</button>
+  <button data-v="oblique" class="on">Miring</button>
+  <button data-v="side">Samping</button>
+  <button data-v="top">Atas</button>
+  <button id="mat">Sirip: yellow board</button>
+  <button id="bg">Alur/alas: putih</button>
+  <button id="fn">Sirip: tampil</button>
+  <button id="fr">Frame: hitam</button>
+  <label>Arah cahaya <input id="az" type="range" min="-90" max="90" value="-40"></label>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// Ukuran (mm): total 500x500, frame 15 mm -> area sirip 470x470, alas styrofoam 30 mm, frame tinggi 65 mm
+const TOT=500,F=15,A=470,N=59,T=3,PITCH=(A-T)/(N-1),FOAM=30,BASE=20,EMB=10,FRAMEH=65,HMIN=8,HMAX=38,S=A/400;
+const SRC=[[255*S,120*S,1.0,180*S,70*S],[150*S,270*S,0.7,130*S,55*S]];
+function h(x,y){let s=0;for(const [sx,sy,a,L,lam] of SRC){const r=Math.hypot(x-sx,y-sy);s+=-a*Math.exp(-r/L)*Math.cos(2*Math.PI*r/lam);}
+  return Math.min(HMAX,Math.max(HMIN,22+10*s));}
+
+const cv=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x15161a);
+const cam=new THREE.PerspectiveCamera(35,1,1,4000);
+const ctr=new THREE.Vector3(250,250,30);
+const controls=new THREE.OrbitControls(cam,cv);
+controls.enableDamping=true;controls.target.copy(ctr);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.55));
+const sun=new THREE.DirectionalLight(0xffffff,0.95);
+sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);
+const sc=sun.shadow.camera;sc.left=-410;sc.right=410;sc.top=410;sc.bottom=-410;sc.near=1;sc.far=2200;
+sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.4;
+scene.add(sun);scene.add(sun.target);sun.target.position.copy(ctr);
+function setLight(deg){const a=deg*Math.PI/180;sun.position.set(250+Math.sin(a)*880,250+650,475+Math.cos(a)*380);}
+setLight(-40);
+
+const finMat=new THREE.MeshStandardMaterial({color:0xd9c486,roughness:0.9});
+const foamMat=new THREE.MeshStandardMaterial({color:0xf2f2f0,roughness:1});
+const frameMat=new THREE.MeshStandardMaterial({color:0x1c1c20,roughness:0.6});
+const backMat=new THREE.MeshStandardMaterial({color:0x8a6d4a,roughness:1});
+const group=new THREE.Group();
+function box(x0,y0,z0,x1,y1,z1,m){const b=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),m);
+  b.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);b.castShadow=true;b.receiveShadow=true;group.add(b);return b;}
+box(0,0,-3,TOT,TOT,0,backMat);                 // papan belakang triplek 3 mm
+box(F,F,0,TOT-F,TOT-F,BASE,foamMat);           // lapis dasar styrofoam 20 mm
+for(let j=0;j<N-1;j++){                         // lapis 1 cm: dinding antar alur
+  box(F+j*PITCH+T,F,BASE,F+(j+1)*PITCH,TOT-F,FOAM,foamMat);
+}
+const frame=new THREE.Group();group.add(frame);
+[[0,0,F,TOT],[TOT-F,0,TOT,TOT],[F,0,TOT-F,F],[F,TOT-F,TOT-F,TOT]].forEach(([x0,y0,x1,y1])=>{
+  const b=box(x0,y0,0,x1,y1,FRAMEH,frameMat);group.remove(b);frame.add(b);});
+const finsG=new THREE.Group();group.add(finsG);
+const perm=new THREE.Matrix4().set(0,0,1,0, 1,0,0,0, 0,1,0,0, 0,0,0,1);
+for(let i=0;i<N;i++){
+  const xl=i*PITCH, xc=xl+T/2;
+  const sh=new THREE.Shape();sh.moveTo(0,0);sh.lineTo(A,0);
+  for(let y=A;y>=0;y-=3.9166667)sh.lineTo(y,EMB+h(xc,y));
+  sh.lineTo(0,EMB+h(xc,0));sh.closePath();
+  const g=new THREE.ExtrudeGeometry(sh,{depth:T,bevelEnabled:false});
+  g.applyMatrix4(perm);g.translate(F+xl,F,BASE);
+  const m=new THREE.Mesh(g,finMat);m.castShadow=true;m.receiveShadow=true;finsG.add(m);
+}
+scene.add(group);
+
+const views={front:[250,250,1130],oblique:[-240,75,800],side:[-810,250,150],top:[250,-800,325]};
+let tween=null;
+function go(k){const p=views[k];tween={from:cam.position.clone(),to:new THREE.Vector3(...p),t:0};
+  document.querySelectorAll('button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===k));}
+cam.position.set(...views.oblique);cam.up.set(0,1,0);
+document.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.getElementById('az').oninput=e=>setLight(+e.target.value);
+const fcs=[['yellow board',0xd9c486],['putih',0xf2f2f0],['biru',0x2358d6]];let fci=0;
+document.getElementById('mat').onclick=e=>{fci=(fci+1)%fcs.length;finMat.color.set(fcs[fci][1]);e.target.textContent='Sirip: '+fcs[fci][0];};
+const bgs=[['putih',0xf2f2f0],['biru tua',0x1f3a8a],['hitam',0x16161a]];let bi=0;
+document.getElementById('bg').onclick=e=>{bi=(bi+1)%bgs.length;foamMat.color.set(bgs[bi][1]);e.target.textContent='Alur/alas: '+bgs[bi][0];};
+document.getElementById('fn').onclick=e=>{finsG.visible=!finsG.visible;e.target.textContent='Sirip: '+(finsG.visible?'tampil':'sembunyi (lihat alur)');};
+const frs=[['hitam',0x1c1c20],['putih',0xf2f2f0],['kayu',0xb98a5a],['tanpa frame',null]];let fi=0;
+document.getElementById('fr').onclick=e=>{fi=(fi+1)%frs.length;const c=frs[fi][1];frame.visible=c!==null;if(c!==null)frameMat.color.set(c);e.target.textContent='Frame: '+frs[fi][0];};
+
+function resize(){const W=innerWidth,H=innerHeight;renderer.setSize(W,H,false);cam.aspect=W/H;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+(function loop(){
+  if(tween){tween.t=Math.min(1,tween.t+0.045);const e=1-Math.pow(1-tween.t,3);cam.position.lerpVectors(tween.from,tween.to,e);if(tween.t>=1)tween=null;}
+  controls.update();renderer.render(scene,cam);requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
